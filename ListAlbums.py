@@ -37,7 +37,7 @@ def list_albums():
 				album_id = album['id']
 				album_title = album['title']
 				media_items_count = album.get('mediaItemsCount', '0')
-				print(f"Album: {album_title}")
+				print(f"🖼️ Album: {album_title}")
 				print(f"\tID: {album_id}")
 				print(f"\tNumber of photos: {media_items_count}")
 
