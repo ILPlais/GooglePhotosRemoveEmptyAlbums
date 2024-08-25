@@ -1,45 +1,15 @@
 #!/bin/python3
-import os
-import google.auth
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from GoogleAuthenticate import authenticate
 import requests
 
 # Define the scopes required to access the Google Photos API
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly']
 
-def authenticate():
-	"""
-	Authenticates the user and returns the credentials.
-	"""
-	creds = None
-
-	# Check if a token already exists
-	if os.path.exists('token.json'):
-		creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-
-	# If credentials are not valid or do not exist
-	if not creds or not creds.valid:
-		if creds and creds.expired and creds.refresh_token:
-			# Refresh the token if necessary
-			creds.refresh(Request())
-		else:
-			# Run the OAuth 2.0 flow to get new credentials
-			flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-			creds = flow.run_local_server(port=0)
-
-		# Save the credentials for future use
-		with open('token.json', 'w') as token:
-			token.write(creds.to_json())
-
-	return creds
-
 def list_albums():
 	"""
 	Lists photo albums with their names and the number of photos they contain.
 	"""
-	creds = authenticate()
+	creds = authenticate(SCOPES)
 	headers = {
 		'Authorization': f'Bearer {creds.token}'
 	}
