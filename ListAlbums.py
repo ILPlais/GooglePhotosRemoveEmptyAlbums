@@ -47,7 +47,7 @@ def list_albums():
 			if not next_page_token:
 				break
 		else:
-			print(f"Failed to retrieve albums: {response.status_code}")
+			print(f"⚠️ Failed to retrieve albums: {response.status_code}")
 
 if __name__ == '__main__':
 	# Call the function to list albums

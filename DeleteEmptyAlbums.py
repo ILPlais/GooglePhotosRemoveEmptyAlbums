@@ -43,7 +43,7 @@ def delete_empty_albums():
 					remove_response = requests.post(remove_album_url, headers = headers, data = payload)
 
 					if remove_response.status_code == 200:
-						print(f"❌ Successfully removed empty album: {album_title}.")
+						print(f"🗑️ Successfully removed empty album: {album_title}.")
 						print(f"\tID: {album_id}")
 					else:
 						print(f"⚠️ Failed to remove album: {album_title}.")
@@ -57,7 +57,6 @@ def delete_empty_albums():
 				break
 		else:
 			print(f"⚠️ Failed to retrieve albums: {response.status_code}")
-			print(f"\tResponse: {response.text}")
 			break
 
 if __name__ == '__main__':
