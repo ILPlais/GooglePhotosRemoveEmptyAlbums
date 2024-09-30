@@ -1,10 +1,12 @@
 #!/bin/python3
 from GoogleAuthenticate import authenticate
 import requests
-import json
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
 
 # Define the scopes required to access the Google Photos API
-SCOPES = ['https://www.googleapis.com/auth/photoslibrary']
+SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly']
 
 def delete_empty_albums():
 	"""
@@ -18,7 +20,6 @@ def delete_empty_albums():
 
 	# URLs for the Google Photos API
 	albums_url = 'https://photoslibrary.googleapis.com/v1/albums'
-	remove_album_url = 'https://photoslibrary.googleapis.com/v1/albums:remove'
 	next_page_token = None
 
 	# Loop on the API's responses
@@ -35,22 +36,24 @@ def delete_empty_albums():
 			for album in albums:
 				album_id = album['id']
 				album_title = album['title']
-				media_items_count = int(album.get('mediaItemsCount', '0'))
+				album_productUrl = album['productUrl']
+				album_media_items_count = int(album.get('mediaItemsCount', '0'))
 				
-				if media_items_count == 0:
+				if album_media_items_count == 0:
 					# Remove the empty album
-					payload = json.dumps({"albumId": album_id})
-					remove_response = requests.post(remove_album_url, headers = headers, data = payload)
-
-					if remove_response.status_code == 200:
-						print(f"🗑️ Successfully removed empty album: {album_title}.")
-						print(f"\tID: {album_id}")
-					else:
+					try:
+						if delete_album(album_productUrl):
+							print(f"🗑️ Successfully removed empty album: {album_title}.")
+							print(f"\tID: {album_id}")
+						else:
+							print(f"⚠️ Failed to remove album: {album_title}.")
+							print(f"\tID: {album_id}")
+					except Exception as e:
 						print(f"⚠️ Failed to remove album: {album_title}.")
-						print(f"\tError: {remove_response.status_code}")
+						print(f"\tError: {e}")
 						print(f"\tID: {album_id}")
-				elif media_items_count > 0:
-					print(f"🖼️ Album {album_title} has {media_items_count} item{'s' if media_items_count > 1 else ''}. Skipping removal.")
+				elif album_media_items_count > 0:
+					print(f"🖼️ Album {album_title} has {album_media_items_count} item{'s' if album_media_items_count > 1 else ''}. Skipping removal.")
 
 			next_page_token = data.get('nextPageToken')
 			if not next_page_token:
@@ -58,6 +61,40 @@ def delete_empty_albums():
 		else:
 			print(f"⚠️ Failed to retrieve albums: {response.status_code}")
 			break
+
+def delete_album(album_productUrl):
+	"""
+	Delete the album with the given product URL.
+	"""
+	# Create the driver for the browser Firefox
+	options = Options()
+	options.headless = True
+	driver = webdriver.Firefox(options = options)
+	driver.set_window_size(800, 600)
+
+	# Open the album page
+	driver.get(album_productUrl)
+
+	# Wait for the page to load
+	driver.implicitly_wait(10)
+
+	# Click on the top right button
+	ActionChains(driver).move_by_offset(760, 25).click().perform()
+
+	# Click on the "Delete the album" menu item
+	ActionChains(driver).move_by_offset(700, 90).click().perform()
+
+	# Click on the "Delete" button
+	#ActionChains(driver).move_by_offset(620, 360).click().perform()
+	ActionChains(driver).move_by_offset(475, 360).click().perform()
+
+	# Wait for the page to load
+	driver.implicitly_wait(10)
+
+	# Close the browser
+	driver.quit()
+
+	return True
 
 if __name__ == '__main__':
 	delete_empty_albums()
