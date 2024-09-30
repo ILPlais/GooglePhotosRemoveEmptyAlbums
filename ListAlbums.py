@@ -36,10 +36,12 @@ def list_albums():
 			for album in albums:
 				album_id = album['id']
 				album_title = album['title']
-				media_items_count = album.get('mediaItemsCount', '0')
+				album_productUrl = album['productUrl']
+				album_media_items_count = album.get('mediaItemsCount', '0')
 				print(f"🖼️ Album: {album_title}")
 				print(f"\tID: {album_id}")
-				print(f"\tNumber of photos: {media_items_count}")
+				print(f"\tURL: {album_productUrl}")
+				print(f"\tNumber of photos: {album_media_items_count}")
 
 			next_page_token = data.get('nextPageToken')
 
