@@ -1,8 +1,12 @@
 #!/bin/python3
+import argparse
+import pathlib
+import os
+import platform
 from GoogleAuthenticate import authenticate
 import requests
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 
 # Define the scopes required to access the Google Photos API
@@ -66,10 +70,13 @@ def delete_album(album_productUrl):
 	"""
 	Delete the album with the given product URL.
 	"""
-	# Create the driver for the browser Firefox
+	# Create the driver for the browser
 	options = Options()
+	if args.location:
+		options.binary_location = str(args.location)
 	options.headless = True
-	driver = webdriver.Firefox(options = options)
+	options.add_argument(f"--user-data-dir={args.profile}")
+	driver = webdriver.Chrome(options = options)
 	driver.set_window_size(800, 600)
 
 	# Open the album page
@@ -82,11 +89,10 @@ def delete_album(album_productUrl):
 	ActionChains(driver).move_by_offset(760, 25).click().perform()
 
 	# Click on the "Delete the album" menu item
-	ActionChains(driver).move_by_offset(700, 90).click().perform()
+	ActionChains(driver).move_by_offset(700 - 760, 90 - 25).click().perform()
 
 	# Click on the "Delete" button
-	#ActionChains(driver).move_by_offset(620, 360).click().perform()
-	ActionChains(driver).move_by_offset(475, 360).click().perform()
+	ActionChains(driver).move_by_offset(620 - 760 - 700, 360 - 25 - 90).click().perform()
 
 	# Wait for the page to load
 	driver.implicitly_wait(10)
@@ -97,4 +103,50 @@ def delete_album(album_productUrl):
 	return True
 
 if __name__ == '__main__':
+	# Command line options
+	parser = argparse.ArgumentParser(description = "Delete empty albums from Google Photos.")
+	parser.add_argument("-l", "--location",
+		required = False,
+		type = pathlib.Path,
+		help = "Path to the browser location to use.")
+	parser.add_argument("-p", "--profile",
+		required = False,
+		type = pathlib.Path,
+		help = "Path to the Chrome profile to use.")
+	args = parser.parse_args()
+
+	# Check if the location is provided
+	if args.location:
+		# Check if the location path uses local variables
+		if "%" in str(args.location):
+			args.location = pathlib.Path(os.path.expandvars(args.location))
+
+		# Check if the location exists
+		if not args.location.exists():
+			raise ValueError(f"⚠️ Location not found: {args.location}")
+		else:
+			print(f"🕸️ Using the provided browser location: {args.location}")
+
+	# If the profile is not provided, use the default profile
+	if not args.profile:
+		case = platform.system()
+		if case == "Windows":
+			args.profile = pathlib.Path(os.environ.get("LOCALAPPDATA")) / "Google" / "Chrome" / "User Data"
+		elif case == "Darwin":
+			args.profile = pathlib.Path(os.environ.get("HOME")) / "Library" / "Application Support" / "Google" / "Chrome" / "Profile"
+		elif case == "Linux":
+			args.profile = pathlib.Path(os.environ.get("HOME")) / ".config" / "google-chrome" / "Profile"
+		else:
+			raise ValueError(f"⚠️ Unsupported system: {case}")
+
+	# Check if the profile path uses local variables
+	if "%" in str(args.profile):
+		args.profile = pathlib.Path(os.path.expandvars(args.profile))
+
+	# Check if the profile exists
+	if not args.profile.exists():
+		raise ValueError(f"⚠️ Profile not found: {args.profile}")
+	else:
+		print(f"👤 Using the profile located at: {args.profile}")
+
 	delete_empty_albums()
