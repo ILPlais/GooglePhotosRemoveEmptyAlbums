@@ -80,29 +80,30 @@ def delete_album(album_productUrl):
 	driver = webdriver.Chrome(options = options)
 	driver.set_window_size(800, 600)
 
-	# Open the album page
-	driver.get(album_productUrl)
+	try:
+		# Open the album page
+		driver.get(album_productUrl)
 
-	# Wait for the page to load
-	driver.implicitly_wait(10)
+		# Wait for the page to load
+		driver.implicitly_wait(10)
 
-	# Click on the top right button
-	ActionChains(driver).move_by_offset(750, 30).click().perform()
-	time.sleep(0.5)
+		# Click on the top right button
+		ActionChains(driver).move_by_offset(750, 30).click().perform()
+		time.sleep(0.5)
 
-	# Click on the "Delete the album" menu item
-	ActionChains(driver).move_by_offset(0, 60).click().perform()
-	time.sleep(0.5)
+		# Click on the "Delete the album" menu item
+		ActionChains(driver).move_by_offset(0, 60).click().perform()
+		time.sleep(0.5)
 
-	# Click on the "Delete" button
-	ActionChains(driver).move_by_offset(-150, 200).click().perform()
-	time.sleep(1)
+		# Click on the "Delete" button
+		ActionChains(driver).move_by_offset(-150, 200).click().perform()
+		time.sleep(1)
 
-	# Wait for the page to load
-	driver.implicitly_wait(10)
-
-	# Close the browser
-	driver.quit()
+		# Wait for the page to load
+		driver.implicitly_wait(10)
+	finally:
+		# Close the browser
+		driver.quit()
 
 	return True
 
