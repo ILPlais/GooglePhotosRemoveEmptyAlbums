@@ -2,6 +2,7 @@
 import argparse
 import pathlib
 import os
+import time
 import platform
 from GoogleAuthenticate import authenticate
 import requests
@@ -86,13 +87,16 @@ def delete_album(album_productUrl):
 	driver.implicitly_wait(10)
 
 	# Click on the top right button
-	ActionChains(driver).move_by_offset(760, 25).click().perform()
+	ActionChains(driver).move_by_offset(750, 30).click().perform()
+	time.sleep(0.5)
 
 	# Click on the "Delete the album" menu item
-	ActionChains(driver).move_by_offset(700 - 760, 90 - 25).click().perform()
+	ActionChains(driver).move_by_offset(0, 60).click().perform()
+	time.sleep(0.5)
 
 	# Click on the "Delete" button
-	ActionChains(driver).move_by_offset(620 - 760 - 700, 360 - 25 - 90).click().perform()
+	ActionChains(driver).move_by_offset(-150, 200).click().perform()
+	time.sleep(1)
 
 	# Wait for the page to load
 	driver.implicitly_wait(10)
