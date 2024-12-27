@@ -119,7 +119,7 @@ def list_empty_albums() -> AlbumList:
 			num_pages += 1			
 
 			# Print the number of pages and albums
-			print(f"{Fore.YELLOW}🔍 Retrieved {num_pages} {'pages' if num_pages > 1 else 'page'} ({len(album_list.albums)} {'albums' if len(album_list.albums) > 1 else 'album'}).{Fore.RESET}")
+			print(f"{Fore.YELLOW}🔍 Retrieved {num_pages:,} {'pages' if num_pages > 1 else 'page'} ({len(album_list.albums):,} {'albums' if len(album_list.albums) > 1 else 'album'}).{Fore.RESET}")
 	
 			# If there is no next page token, break the loop
 			if not next_page_token:
