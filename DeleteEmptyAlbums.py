@@ -45,27 +45,31 @@ def delete_empty_albums():
 	albums = list_empty_albums()
 
 	# Loop on the empty albums
-	for album in tqdm(albums.albums, desc = "Deleting empty albums", unit = "album"):
+	for album in tqdm(albums.albums,
+		desc = "Deleting empty albums",
+		unit = "album",
+		position = 0,
+		leave = True):
 		# If the album has no items, remove it
 		if album.mediaItemsCount == 0:
 			# Remove the empty album
 			try:
-				print(f"""{Fore.YELLOW}🚮 Remove the empty album: "{album.title}"…{Fore.RESET}""")
-				print(f"\tURL: {album.productUrl}")
+				tqdm.write(f"""{Fore.YELLOW}🚮 Remove the empty album: "{album.title}"…{Fore.RESET}""")
+				tqdm.write(f"\tURL: {album.productUrl}")
 
 				# Use the browser to remove the album
 				if delete_album(album.productUrl):
-					print(f"{Fore.GREEN}🗑️ Successfully removed empty album: {album.title}.{Fore.RESET}")
-					print(f"\tID: {album.id}")
+					tqdm.write(f"{Fore.GREEN}🗑️ Successfully removed empty album: {album.title}.{Fore.RESET}")
+					tqdm.write(f"\tID: {album.id}")
 				else:
-					print(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
-					print(f"\tID: {album.id}")
-					print(f"\tURL: {album.productUrl}")
+					tqdm.write(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
+					tqdm.write(f"\tID: {album.id}")
+					tqdm.write(f"\tURL: {album.productUrl}")
 			except Exception as e:
-				print(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
-				print(f"\tError: {e}")
-				print(f"\tID: {album.id}")
-				print(f"\tURL: {album.productUrl}")
+				tqdm.write(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
+				tqdm.write(f"\tError: {e}")
+				tqdm.write(f"\tID: {album.id}")
+				tqdm.write(f"\tURL: {album.productUrl}")
 
 def list_empty_albums() -> AlbumList:
 	"""
@@ -111,11 +115,11 @@ def list_empty_albums() -> AlbumList:
 
 			# Get the next page token
 			next_page_token = data.get('nextPageToken')
-			num_pages += 1			
+			num_pages += 1
 
 			# Print the number of pages and albums
 			print(f"{Fore.YELLOW}🔍 Retrieved {num_pages:,} {'pages' if num_pages > 1 else 'page'} ({len(album_list.albums):,} {'albums' if len(album_list.albums) > 1 else 'album'}).{Fore.RESET}")
-	
+
 			# If there is no next page token, break the loop
 			if not next_page_token:
 				break
@@ -134,7 +138,15 @@ def delete_album(album_productUrl):
 	if args.location:
 		options.binary_location = str(args.location)
 	options.headless = True
+	# Set the user data location
 	options.add_argument(f"--user-data-dir={args.profile}")
+	# Disable the browser logs
+	options.add_argument("--log-level=3")
+	options.add_argument("--disable-logging")
+	options.add_argument("--silent")
+	options.add_experimental_option("excludeSwitches", ["enable-logging"])
+	# Set the window size
+	options.add_argument("--window-size=800,600")
 	driver = webdriver.Chrome(options = options)
 	driver.set_window_size(800, 600)
 
