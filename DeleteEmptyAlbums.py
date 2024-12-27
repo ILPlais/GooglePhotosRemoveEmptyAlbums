@@ -59,14 +59,14 @@ def delete_empty_albums():
 
 				# Use the browser to remove the album
 				if delete_album(album.productUrl):
-					tqdm.write(f"{Fore.GREEN}🗑️ Successfully removed empty album: {album.title}.{Fore.RESET}")
+					tqdm.write(f"""{Fore.GREEN}🗑️ Successfully removed empty album: "{album.title}".{Fore.RESET}""")
 					tqdm.write(f"\tID: {album.id}")
 				else:
-					tqdm.write(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
+					tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album.title}".{Fore.RESET}""")
 					tqdm.write(f"\tID: {album.id}")
 					tqdm.write(f"\tURL: {album.productUrl}")
 			except Exception as e:
-				tqdm.write(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
+				tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album.title}".{Fore.RESET}""")
 				tqdm.write(f"\tError: {e}")
 				tqdm.write(f"\tID: {album.id}")
 				tqdm.write(f"\tURL: {album.productUrl}")
@@ -133,18 +133,20 @@ def delete_album(album_productUrl):
 	"""
 	Delete the album with the given product URL.
 	"""
+
 	# Create the driver for the browser
 	options = Options()
 	if args.location:
 		options.binary_location = str(args.location)
 	options.headless = True
+
 	# Set the user data location
 	options.add_argument(f"--user-data-dir={args.profile}")
-	# Disable the browser logs
-	options.add_argument("--log-level=3")
-	options.add_argument("--disable-logging")
+
+	# Disable the browser logs in the console
 	options.add_argument("--silent")
 	options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
 	# Set the window size
 	options.add_argument("--window-size=800,600")
 	driver = webdriver.Chrome(options = options)
@@ -173,6 +175,7 @@ def delete_album(album_productUrl):
 		driver.implicitly_wait(10)
 
 		return True
+
 	finally:
 		# Close the browser
 		driver.quit()
