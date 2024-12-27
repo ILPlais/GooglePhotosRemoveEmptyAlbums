@@ -183,11 +183,11 @@ if __name__ == '__main__':
 	parser.add_argument("-l", "--location",
 		required = False,
 		type = pathlib.Path,
-		help = "Path to the browser location to use.")
+		help = "Path to the browser location to use. Work only with Google Chrome or Chromium.")
 	parser.add_argument("-p", "--profile",
 		required = False,
 		type = pathlib.Path,
-		help = "Path to the Chrome profile to use.")
+		help = "Path to the user profile to use.")
 	args = parser.parse_args()
 
 	# Check if the location is provided
