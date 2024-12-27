@@ -46,31 +46,26 @@ def delete_empty_albums():
 
 	# Loop on the empty albums
 	for album in tqdm(albums.albums, desc = "Deleting empty albums", unit = "album"):
-		album_id = album['id']
-		album_title = album['title']
-		album_productUrl = album['productUrl']
-		album_media_items_count = int(album.get('mediaItemsCount', '0'))
-
 		# If the album has no items, remove it
-		if album_media_items_count == 0:
+		if album.mediaItemsCount == 0:
 			# Remove the empty album
 			try:
-				print(f"""{Fore.YELLOW}🚮 Remove the empty album: "{album_title}"…{Fore.RESET}""")
-				print(f"\tURL: {album_productUrl}")
+				print(f"""{Fore.YELLOW}🚮 Remove the empty album: "{album.title}"…{Fore.RESET}""")
+				print(f"\tURL: {album.productUrl}")
 
 				# Use the browser to remove the album
-				if delete_album(album_productUrl):
-					print(f"{Fore.GREEN}🗑️ Successfully removed empty album: {album_title}.{Fore.RESET}")
-					print(f"\tID: {album_id}")
+				if delete_album(album.productUrl):
+					print(f"{Fore.GREEN}🗑️ Successfully removed empty album: {album.title}.{Fore.RESET}")
+					print(f"\tID: {album.id}")
 				else:
-					print(f"{Fore.RED}⚠️ Failed to remove album: {album_title}.{Fore.RESET}")
-					print(f"\tID: {album_id}")
-					print(f"\tURL: {album_productUrl}")
+					print(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
+					print(f"\tID: {album.id}")
+					print(f"\tURL: {album.productUrl}")
 			except Exception as e:
-				print(f"{Fore.RED}⚠️ Failed to remove album: {album_title}.{Fore.RESET}")
+				print(f"{Fore.RED}⚠️ Failed to remove album: {album.title}.{Fore.RESET}")
 				print(f"\tError: {e}")
-				print(f"\tID: {album_id}")
-				print(f"\tURL: {album_productUrl}")
+				print(f"\tID: {album.id}")
+				print(f"\tURL: {album.productUrl}")
 
 def list_empty_albums() -> AlbumList:
 	"""
