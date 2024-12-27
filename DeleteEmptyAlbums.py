@@ -9,13 +9,72 @@ import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
+from tqdm import tqdm
+from colorama import Fore
 
 # Define the scopes required to access the Google Photos API
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly']
 
+# URLs for the Google Photos API
+GOOGLE_PHOTOS_API = 'https://photoslibrary.googleapis.com/v1/albums'
+
+# Class for the album
+class Album:
+	"""
+	Class for the album.
+	"""
+	def __init__(self, id, title, productUrl, mediaItemsCount):
+		self.id = id
+		self.title = title
+		self.productUrl = productUrl
+		self.mediaItemsCount = mediaItemsCount
+
+# Class for the album list
+class AlbumList:
+	"""
+	Class for the album list.
+	"""
+	def __init__(self):
+		self.albums = []
+
 def delete_empty_albums():
 	"""
 	Delete the albums with no items in them.
+	"""
+	# Get the empty albums
+	albums = list_empty_albums()
+
+	# Loop on the empty albums
+	for album in tqdm(albums.albums, desc = "Deleting empty albums", unit = "album"):
+		album_id = album['id']
+		album_title = album['title']
+		album_productUrl = album['productUrl']
+		album_media_items_count = int(album.get('mediaItemsCount', '0'))
+
+		# If the album has no items, remove it
+		if album_media_items_count == 0:
+			# Remove the empty album
+			try:
+				print(f"""{Fore.YELLOW}🚮 Remove the empty album: "{album_title}"…{Fore.RESET}""")
+				print(f"\tURL: {album_productUrl}")
+
+				# Use the browser to remove the album
+				if delete_album(album_productUrl):
+					print(f"{Fore.GREEN}🗑️ Successfully removed empty album: {album_title}.{Fore.RESET}")
+					print(f"\tID: {album_id}")
+				else:
+					print(f"{Fore.RED}⚠️ Failed to remove album: {album_title}.{Fore.RESET}")
+					print(f"\tID: {album_id}")
+					print(f"\tURL: {album_productUrl}")
+			except Exception as e:
+				print(f"{Fore.RED}⚠️ Failed to remove album: {album_title}.{Fore.RESET}")
+				print(f"\tError: {e}")
+				print(f"\tID: {album_id}")
+				print(f"\tURL: {album_productUrl}")
+
+def list_empty_albums() -> AlbumList:
+	"""
+	List all the empty albums.
 	"""
 	creds = authenticate(SCOPES)
 	headers = {
@@ -23,9 +82,14 @@ def delete_empty_albums():
 		'Content-type': 'application/json'
 	}
 
-	# URLs for the Google Photos API
-	albums_url = 'https://photoslibrary.googleapis.com/v1/albums'
+	# Initialize the album list
+	album_list = AlbumList()
+
+	# Initialize the token for the pages
 	next_page_token = None
+	num_pages = 0
+
+	print(f"{Fore.YELLOW}🔍 Retrieving empty albums…{Fore.RESET}")
 
 	# Loop on the API's responses
 	while True:
@@ -33,39 +97,40 @@ def delete_empty_albums():
 		if next_page_token:
 			params['pageToken'] = next_page_token
 
-		response = requests.get(albums_url, headers=headers, params=params)
+		# Sent a GET request to the Google Photos API to get the albums
+		response = requests.get(GOOGLE_PHOTOS_API, headers=headers, params=params)
 		if response.status_code == 200:
 			data = response.json()
 			albums = data.get('albums', [])
 
+			# Add the empty albums to the album list
 			for album in albums:
 				album_id = album['id']
 				album_title = album['title']
 				album_productUrl = album['productUrl']
 				album_media_items_count = int(album.get('mediaItemsCount', '0'))
-				
-				if album_media_items_count == 0:
-					# Remove the empty album
-					try:
-						if delete_album(album_productUrl):
-							print(f"🗑️ Successfully removed empty album: {album_title}.")
-							print(f"\tID: {album_id}")
-						else:
-							print(f"⚠️ Failed to remove album: {album_title}.")
-							print(f"\tID: {album_id}")
-					except Exception as e:
-						print(f"⚠️ Failed to remove album: {album_title}.")
-						print(f"\tError: {e}")
-						print(f"\tID: {album_id}")
-				elif album_media_items_count > 0:
-					print(f"🖼️ Album {album_title} has {album_media_items_count} item{'s' if album_media_items_count > 1 else ''}. Skipping removal.")
 
+				# Add the empty album to the album list
+				if album_media_items_count == 0:
+					album_list.albums.append(Album(album_id, album_title, album_productUrl, album_media_items_count))
+
+			# Get the next page token
 			next_page_token = data.get('nextPageToken')
+			num_pages += 1
+			
+			if num_pages > 1:
+				print(f"{Fore.YELLOW}🔍 Retrieved {num_pages} pages ({len(album_list.albums)} albums).{Fore.RESET}")
+			else:
+				print(f"{Fore.YELLOW}🔍 Retrieved {num_pages} page ({len(album_list.albums)} albums).{Fore.RESET}")
+
+			# If there is no next page token, break the loop
 			if not next_page_token:
 				break
 		else:
-			print(f"⚠️ Failed to retrieve albums: {response.status_code}")
+			print(f"{Fore.RED}⚠️ Failed to retrieve albums: {response.status_code}.{Fore.RESET}")
 			break
+
+	return album_list
 
 def delete_album(album_productUrl):
 	"""
@@ -89,11 +154,11 @@ def delete_album(album_productUrl):
 
 		# Click on the top right button
 		ActionChains(driver).move_by_offset(750, 30).click().perform()
-		time.sleep(0.5)
+		time.sleep(0.2)
 
 		# Click on the "Delete the album" menu item
 		ActionChains(driver).move_by_offset(0, 60).click().perform()
-		time.sleep(0.5)
+		time.sleep(0.2)
 
 		# Click on the "Delete" button
 		ActionChains(driver).move_by_offset(-150, 200).click().perform()
@@ -101,11 +166,11 @@ def delete_album(album_productUrl):
 
 		# Wait for the page to load
 		driver.implicitly_wait(10)
+
+		return True
 	finally:
 		# Close the browser
 		driver.quit()
-
-	return True
 
 if __name__ == '__main__':
 	# Command line options
@@ -128,9 +193,9 @@ if __name__ == '__main__':
 
 		# Check if the location exists
 		if not args.location.exists():
-			raise ValueError(f"⚠️ Location not found: {args.location}")
+			raise ValueError(f"{Fore.RED}⚠️ Location not found: {args.location}!{Fore.RESET}")
 		else:
-			print(f"🕸️ Using the provided browser location: {args.location}")
+			print(f"{Fore.YELLOW}🕸️ Using the provided browser location: {args.location}.{Fore.RESET}")
 
 	# If the profile is not provided, use the default profile
 	if not args.profile:
@@ -142,7 +207,7 @@ if __name__ == '__main__':
 		elif case == "Linux":
 			args.profile = pathlib.Path(os.environ.get("HOME")) / ".config" / "google-chrome" / "Profile"
 		else:
-			raise ValueError(f"⚠️ Unsupported system: {case}")
+			raise ValueError(f"{Fore.RED}⚠️ Unsupported system: {case}!{Fore.RESET}")
 
 	# Check if the profile path uses local variables
 	if "%" in str(args.profile):
@@ -150,8 +215,8 @@ if __name__ == '__main__':
 
 	# Check if the profile exists
 	if not args.profile.exists():
-		raise ValueError(f"⚠️ Profile not found: {args.profile}")
+		raise ValueError(f"{Fore.RED}⚠️ Profile not found: {args.profile}!{Fore.RESET}")
 	else:
-		print(f"👤 Using the profile located at: {args.profile}")
+		print(f"{Fore.YELLOW}👤 Using the profile located at: {args.profile}.{Fore.RESET}")
 
 	delete_empty_albums()

@@ -5,6 +5,9 @@ import requests
 # Define the scopes required to access the Google Photos API
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly']
 
+# URLs for the Google Photos API
+GOOGLE_PHOTOS_API = 'https://photoslibrary.googleapis.com/v1/albums'
+
 def list_albums():
 	"""
 	Lists photo albums with their names and the number of photos they contain.
@@ -14,8 +17,7 @@ def list_albums():
 		'Authorization': f'Bearer {creds.token}'
 	}
 
-	# URL for the Google Photos API
-	url = 'https://photoslibrary.googleapis.com/v1/albums'
+	# Initialize the token for the pages
 	next_page_token = None
 
 	# Loop on the API's responses
@@ -27,7 +29,7 @@ def list_albums():
 			params['pageToken'] = next_page_token
 
 		# Send a GET request to the Google Photos API to retrieve albums
-		response = requests.get(url, headers = headers, params = params)
+		response = requests.get(GOOGLE_PHOTOS_API, headers = headers, params = params)
 		if response.status_code == 200:
 			data = response.json()
 			albums = data.get('albums', [])
