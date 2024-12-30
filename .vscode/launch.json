@@ -12,7 +12,8 @@
 			"console": "integratedTerminal",
 			"args": [
 				"--location", "%PROGRAMFILES%/Chromium/Application/chrome.exe",
-				"--profile", "%LOCALAPPDATA%/Chromium/User Data"
+				"--profile", "%LOCALAPPDATA%/Chromium/User Data",
+				"--threads", "2"
 			]
 		}
 	]

@@ -68,16 +68,18 @@ It only works with [Google Chrome](https://www.google.fr/chrome/browser/) and [C
 ### Command line
 
 ```
-usage: DeleteEmptyAlbums.py [-h] [-l LOCATION] [-p PROFILE]
+usage: DeleteEmptyAlbums.py [-h] [-l LOCATION] [-p PROFILE] [-t THREADS]
 
 Delete empty albums from Google Photos.
 
 options:
   -h, --help            show this help message and exit
-  -l LOCATION, --location LOCATION
+  -l, --location LOCATION
                         Path to the browser location to use. Work only with Google Chrome or Chromium.
-  -p PROFILE, --profile PROFILE
+  -p, --profile PROFILE
                         Path to the user profile to use.
+  -t, --threads THREADS
+                        Number of threads to use (default: 5).
 ```
 
 ### Examples

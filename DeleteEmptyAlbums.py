@@ -10,6 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from tqdm import tqdm
+from multiprocessing import Pool
 from colorama import Fore
 
 # Define the scopes required to access the Google Photos API
@@ -29,7 +30,7 @@ class Album:
 		self.productUrl = productUrl
 		self.mediaItemsCount = mediaItemsCount
 
-# Class for the album list
+# Class for the albums list
 class AlbumList:
 	"""
 	Class for the album list.
@@ -37,39 +38,54 @@ class AlbumList:
 	def __init__(self):
 		self.albums = []
 
-def delete_empty_albums():
+def delete_empty_albums(location: pathlib.Path, profile: pathlib.Path, threads: int):
 	"""
 	Delete the albums with no items in them.
+
+	Parameters:
+		location: pathlib.Path
+			The path to the browser location to use.
+		profile: pathlib.Path
+			The path to the user profile to use.
+		threads: int
+			The number of threads to use.
 	"""
 	# Get the empty albums
 	albums = list_empty_albums()
 
-	# Loop on the empty albums
-	for album in tqdm(albums.albums,
-		desc = "Deleting empty albums",
-		unit = "album",
-		position = 0,
-		leave = True):
-		# If the album has no items, remove it
-		if album.mediaItemsCount == 0:
-			# Remove the empty album
-			try:
-				tqdm.write(f"""{Fore.YELLOW}🚮 Remove the empty album: "{album.title}"…{Fore.RESET}""")
-				tqdm.write(f"\tURL: {album.productUrl}")
+	# Create the pool of drivers
+	pool = Pool(processes = threads)
+	try:
+		# Loop on the empty albums
+		for album in tqdm(albums.albums,
+				desc = "Deleting empty albums",
+				unit = "album",
+				position = 0,
+				leave = True):
+			# If the album has no items, remove it
+			if album.mediaItemsCount == 0:
+				# Remove the empty album
+				try:
+					tqdm.write(f"""{Fore.BLUE}🚮 Remove the empty album: "{album.title}"…""")
+					tqdm.write(f"\tURL: {album.productUrl}{Fore.RESET}")
 
-				# Use the browser to remove the album
-				if delete_album(album.productUrl):
-					tqdm.write(f"""{Fore.GREEN}🗑️ Successfully removed empty album: "{album.title}".{Fore.RESET}""")
+					# Use the browser to remove the album
+					pool.apply_async(delete_album,
+						args = (album.productUrl, location, profile),
+						callback = lambda _: delete_album_success(album.title, album.id),
+						error_callback = lambda e: delete_album_error(album.title, album.id, e)
+					)
+				except Exception as e:
+					tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album.title}".""")
+					tqdm.write(f"\tError: {e}")
 					tqdm.write(f"\tID: {album.id}")
-				else:
-					tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album.title}".{Fore.RESET}""")
-					tqdm.write(f"\tID: {album.id}")
-					tqdm.write(f"\tURL: {album.productUrl}")
-			except Exception as e:
-				tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album.title}".{Fore.RESET}""")
-				tqdm.write(f"\tError: {e}")
-				tqdm.write(f"\tID: {album.id}")
-				tqdm.write(f"\tURL: {album.productUrl}")
+					tqdm.write(f"\tURL: {album.productUrl}{Fore.RESET}")
+	except Exception as e:
+		tqdm.write(f"{Fore.RED}⚠️ Failed to delete albums: {e}.{Fore.RESET}")
+	finally:
+		# Close the pool
+		pool.close()
+		pool.join()
 
 def list_empty_albums() -> AlbumList:
 	"""
@@ -88,7 +104,7 @@ def list_empty_albums() -> AlbumList:
 	next_page_token = None
 	num_pages = 0
 
-	print(f"{Fore.YELLOW}🔍 Retrieving empty albums…{Fore.RESET}")
+	print(f"{Fore.BLUE}🔍 Retrieving empty albums…{Fore.RESET}")
 
 	# Loop on the API's responses
 	while True:
@@ -118,7 +134,7 @@ def list_empty_albums() -> AlbumList:
 			num_pages += 1
 
 			# Print the number of pages and albums
-			print(f"{Fore.YELLOW}🔍 Retrieved {num_pages:,} {'pages' if num_pages > 1 else 'page'} ({len(album_list.albums):,} {'albums' if len(album_list.albums) > 1 else 'album'}).{Fore.RESET}")
+			print(f"{Fore.BLUE}🔍 Retrieved {num_pages:,} {'pages' if num_pages > 1 else 'page'} ({len(album_list.albums):,} {'albums' if len(album_list.albums) > 1 else 'album'}).{Fore.RESET}")
 
 			# If there is no next page token, break the loop
 			if not next_page_token:
@@ -129,28 +145,11 @@ def list_empty_albums() -> AlbumList:
 
 	return album_list
 
-def delete_album(album_productUrl):
+def delete_album(album_productUrl: str, location: pathlib.Path, profile: pathlib.Path) -> bool:
 	"""
 	Delete the album with the given product URL.
 	"""
-
-	# Create the driver for the browser
-	options = Options()
-	if args.location:
-		options.binary_location = str(args.location)
-	options.headless = True
-
-	# Set the user data location
-	options.add_argument(f"--user-data-dir={args.profile}")
-
-	# Disable the browser logs in the console
-	options.add_argument("--silent")
-	options.add_experimental_option("excludeSwitches", ["enable-logging"])
-
-	# Set the window size
-	options.add_argument("--window-size=800,600")
-	driver = webdriver.Chrome(options = options)
-	driver.set_window_size(800, 600)
+	driver = browser_driver(location, profile)
 
 	try:
 		# Open the album page
@@ -180,6 +179,45 @@ def delete_album(album_productUrl):
 		# Close the browser
 		driver.quit()
 
+def browser_driver(location: pathlib.Path, profile: pathlib.Path) -> webdriver.Chrome:
+	"""
+	Create a browser driver.
+	"""
+	# Create the driver for the browser
+	options = Options()
+	if location:
+		options.binary_location = str(location)
+	options.headless = True
+
+	# Set the user data location
+	options.add_argument(f"--user-data-dir={profile}")
+
+	# Disable the browser logs in the console
+	options.add_argument("--silent")
+	options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
+	# Set the window size
+	options.add_argument("--window-size=800,600")
+	driver = webdriver.Chrome(options = options)
+	driver.set_window_size(800, 600)
+
+	return driver
+
+def delete_album_success(album_title: str, album_id: str):
+	"""
+	Called when album deletion is successful.
+	"""
+	tqdm.write(f"""{Fore.GREEN}🗑️ Successfully removed empty album: "{album_title}".""")
+	tqdm.write(f"\tID: {album_id}{Fore.RESET}")
+
+def delete_album_error(album_title: str, album_id: str, error: Exception):
+	"""
+	Called when album deletion fails.
+	"""
+	tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album_title}".""")
+	tqdm.write(f"\tID: {album_id}{Fore.RESET}")
+	tqdm.write(f"\tError: {error}{Fore.RESET}")
+
 if __name__ == '__main__':
 	# Command line options
 	parser = argparse.ArgumentParser(description = "Delete empty albums from Google Photos.")
@@ -191,6 +229,11 @@ if __name__ == '__main__':
 		required = False,
 		type = pathlib.Path,
 		help = "Path to the user profile to use.")
+	parser.add_argument("-t", "--threads",
+		required = False,
+		type = int,
+		default = 5,
+		help = "Number of threads to use (default: 5).")
 	args = parser.parse_args()
 
 	# Check if the location is provided
@@ -227,4 +270,4 @@ if __name__ == '__main__':
 	else:
 		print(f"{Fore.YELLOW}👤 Using the profile located at: {args.profile}.{Fore.RESET}")
 
-	delete_empty_albums()
+	delete_empty_albums(args.location, args.profile, args.threads)
