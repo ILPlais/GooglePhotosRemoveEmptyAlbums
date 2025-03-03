@@ -9,6 +9,8 @@ import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+import json
 from tqdm import tqdm
 from multiprocessing import Pool
 from colorama import Fore
@@ -53,13 +55,16 @@ def delete_empty_albums(location: pathlib.Path, profile: pathlib.Path, threads: 
 	# Get the empty albums
 	albums = list_empty_albums()
 
+	# Get the cookies for the browser
+	cookies = get_browser_cookies(location, profile)
+
 	# Create the pool of drivers
 	pool = Pool(processes = threads)
 	try:
 		# Loop on the empty albums
 		for album in tqdm(albums.albums,
 				desc = "Deleting empty albums",
-				unit = "album",
+				unit = " album",
 				position = 0,
 				leave = True):
 			# If the album has no items, remove it
@@ -71,7 +76,7 @@ def delete_empty_albums(location: pathlib.Path, profile: pathlib.Path, threads: 
 
 					# Use the browser to remove the album
 					pool.apply_async(delete_album,
-						args = (album.productUrl, location, profile),
+						args = (album.productUrl, location, profile, cookies),
 						callback = lambda _: delete_album_success(album.title, album.id),
 						error_callback = lambda e: delete_album_error(album.title, album.id, e)
 					)
@@ -113,7 +118,7 @@ def list_empty_albums() -> AlbumList:
 			params['pageToken'] = next_page_token
 
 		# Sent a GET request to the Google Photos API to get the albums
-		response = requests.get(GOOGLE_PHOTOS_API, headers=headers, params=params)
+		response = requests.get(GOOGLE_PHOTOS_API, headers = headers, params = params)
 		if response.status_code == 200:
 			data = response.json()
 			albums = data.get('albums', [])
@@ -145,11 +150,11 @@ def list_empty_albums() -> AlbumList:
 
 	return album_list
 
-def delete_album(album_productUrl: str, location: pathlib.Path, profile: pathlib.Path) -> bool:
+def delete_album(album_productUrl: str, location: pathlib.Path, profile: pathlib.Path, cookies: list[dict]) -> bool:
 	"""
 	Delete the album with the given product URL.
 	"""
-	driver = browser_driver(location, profile)
+	driver = browser_driver(location, profile, cookies)
 
 	try:
 		# Open the album page
@@ -159,15 +164,15 @@ def delete_album(album_productUrl: str, location: pathlib.Path, profile: pathlib
 		driver.implicitly_wait(10)
 
 		# Click on the top right button
-		ActionChains(driver).move_by_offset(750, 30).click().perform()
+		ActionChains(driver).move_to_element(driver.find_element(By.XPATH, "/html/body/div[1]/div/c-wiz/div[4]/c-wiz/div/div/span/div/div[5]/div/div[1]/span/button")).click().perform()
 		time.sleep(0.2)
 
 		# Click on the "Delete the album" menu item
-		ActionChains(driver).move_by_offset(0, 60).click().perform()
+		ActionChains(driver).move_to_element(driver.find_element(By.XPATH, "/html/body/div[1]/div/c-wiz/div[4]/c-wiz/div/div/span/div/div[5]/div/div[2]/div/div/ul/li[2]")).click().perform()
 		time.sleep(0.2)
 
 		# Click on the "Delete" button
-		ActionChains(driver).move_by_offset(-150, 200).click().perform()
+		ActionChains(driver).move_to_element(driver.find_element(By.XPATH, "/html/body/div[2]/div/div[3]/div[2]/div/div/div/div[2]/button[2]")).click().perform()
 		time.sleep(1)
 
 		# Wait for the page to load
@@ -179,18 +184,19 @@ def delete_album(album_productUrl: str, location: pathlib.Path, profile: pathlib
 		# Close the browser
 		driver.quit()
 
-def browser_driver(location: pathlib.Path, profile: pathlib.Path) -> webdriver.Chrome:
+def browser_driver(location: pathlib.Path, profile: pathlib.Path, cookies: list[dict]) -> webdriver.Chrome:
 	"""
 	Create a browser driver.
 	"""
-	# Create the driver for the browser
+	# Create the options for the browser
 	options = Options()
+
+	# Set the location of the browser
 	if location:
 		options.binary_location = str(location)
-	options.headless = True
 
-	# Set the user data location
-	options.add_argument(f"--user-data-dir={profile}")
+	# Set the headless mode
+	options.headless = True
 
 	# Disable the browser logs in the console
 	options.add_argument("--silent")
@@ -201,22 +207,67 @@ def browser_driver(location: pathlib.Path, profile: pathlib.Path) -> webdriver.C
 	driver = webdriver.Chrome(options = options)
 	driver.set_window_size(800, 600)
 
+	# Open the Google Photos Website
+	driver.get("https://photos.google.com/")
+
+	# Wait for the page to load
+	driver.implicitly_wait(10)
+
+	# Set the cookies to the browser
+	for cookie in cookies:
+		driver.add_cookie(cookie)
+
 	return driver
+
+def get_browser_cookies(location: pathlib.Path, profile: pathlib.Path) -> list[dict]:
+	"""
+	Get the cookies from the browser.
+	"""
+	# Create the options for the browser
+	options = Options()
+
+	# Set the location of the browser
+	if location:
+		options.binary_location = str(location)
+
+	# Set the headless mode
+	options.headless = True
+
+	# Set the user data location	
+	options.add_argument(f"--user-data-dir={profile}")
+
+	# Create the driver for the browser
+	driver = webdriver.Chrome(options = options)
+	driver.set_window_size(800, 600)
+
+	# Open the Google Photos Website
+	driver.get("https://photos.google.com/")
+
+	# Wait for the page to load
+	driver.implicitly_wait(10)	
+
+	# Save the cookies from the browser
+	cookies = driver.get_cookies()
+
+	# Close the browser
+	driver.quit()
+
+	return cookies
 
 def delete_album_success(album_title: str, album_id: str):
 	"""
 	Called when album deletion is successful.
 	"""
-	tqdm.write(f"""{Fore.GREEN}🗑️ Successfully removed empty album: "{album_title}".""")
-	tqdm.write(f"\tID: {album_id}{Fore.RESET}")
+	tqdm.write(f"""{Fore.GREEN}🗑️ Successfully removed empty album: "{album_title}".{Fore.RESET}""")
+	tqdm.write(f"\t{Fore.GREEN}ID: {album_id}{Fore.RESET}")
 
 def delete_album_error(album_title: str, album_id: str, error: Exception):
 	"""
 	Called when album deletion fails.
 	"""
-	tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album_title}".""")
-	tqdm.write(f"\tID: {album_id}{Fore.RESET}")
-	tqdm.write(f"\tError: {error}{Fore.RESET}")
+	tqdm.write(f"""{Fore.RED}⚠️ Failed to remove album: "{album_title}".{Fore.RESET}""")
+	tqdm.write(f"\t{Fore.RED}ID: {album_id}{Fore.RESET}")
+	tqdm.write(f"\t{Fore.RED}Error: {error}{Fore.RESET}")
 
 if __name__ == '__main__':
 	# Command line options
@@ -244,9 +295,9 @@ if __name__ == '__main__':
 
 		# Check if the location exists
 		if not args.location.exists():
-			raise ValueError(f"{Fore.RED}⚠️ Location not found: {args.location}!{Fore.RESET}")
+			raise ValueError(f"{Fore.RED}⚠️ Location not found: \"{args.location}\"!{Fore.RESET}")
 		else:
-			print(f"{Fore.YELLOW}🕸️ Using the provided browser location: {args.location}.{Fore.RESET}")
+			print(f"{Fore.YELLOW}🕸️ Using the provided browser location: \"{args.location}\".{Fore.RESET}")
 
 	# If the profile is not provided, use the default profile
 	if not args.profile:
@@ -266,8 +317,8 @@ if __name__ == '__main__':
 
 	# Check if the profile exists
 	if not args.profile.exists():
-		raise ValueError(f"{Fore.RED}⚠️ Profile not found: {args.profile}!{Fore.RESET}")
+		raise ValueError(f"{Fore.RED}⚠️ Profile not found: \"{args.profile}\"!{Fore.RESET}")
 	else:
-		print(f"{Fore.YELLOW}👤 Using the profile located at: {args.profile}.{Fore.RESET}")
+		print(f"{Fore.YELLOW}👤 Using the profile located at: \"{args.profile}\".{Fore.RESET}")
 
 	delete_empty_albums(args.location, args.profile, args.threads)
