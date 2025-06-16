@@ -1,6 +1,14 @@
+# 🚫 This repository has been archived
+
+Due to recent changes to the Google Photos API, forcing users to choose which albums will be accessible, this project is no longer of much interest.
+
+**I am forced to archive it!**
+
+> https://github.com/ILPlais/GooglePhotosRemoveEmptyAlbums/issues/1#issuecomment-2977958274
 
 # Google Photos remove empty albums
-Remove all empty albums from a Google Photos account
+
+Remove all empty albums from a Google Photos account.
 
 # How-to use
 
